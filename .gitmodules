@@ -1,0 +1,19 @@
+[submodule "submodule/FileExplorer"]
+	path = submodule/FileExplorer
+	url = git@github.com:NathanielHawron/FileExplorer.git
+
+[submodule "submodule/glfw"]
+	path = submodule/glfw
+	url = git@github.com:glfw/glfw.git
+
+[submodule "submodule/imgui"]
+	path = submodule/imgui
+	url = git@github.com:ocornut/imgui.git
+
+[submodule "submodule/ImNodeFlow"]
+	path = submodule/ImNodeFlow
+	url = git@github.com:Fattorino/ImNodeFlow.git
+
+[submodule "submodule/NRA_visionGL"]
+	path = submodule/NRA_visionGL
+	url = git@github.com:NathanielHawron/NRA_visionGL.git
