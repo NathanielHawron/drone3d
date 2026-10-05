@@ -157,7 +157,6 @@ int main(){
             double cosy = std::cos(yaw);
             camSpacial.pos = (float)radius*glm::vec3(siny*cosp,-sinp,cosy*cosp);
             camSpacial.rot = glm::angleAxis((float)yaw, glm::vec3(0.0f,1.0f,0.0f)) * glm::angleAxis((float)pitch, glm::vec3(1.0f,0.0f,0.0f));
-            //camSpacial.rot = glm::quat(glm::vec3(pitch, -yaw, 0.0));
         }
         
         

@@ -5,17 +5,17 @@
 #include "NRA_visionGL/meshbuilder.h"
 
 void Drone::DroneMenu(std::vector<Drone*> &drones, NRA::VGL::VertexBufferLayout &layout){
-    static char newDroneName[64] = {"\n"};
+    static char newDroneName[64] = {"Drone 0\n"};
     ImGui::Begin("Drones");
     ImGui::InputText("Drone name", newDroneName, 64);
     if(ImGui::Button("+##Add drone")){
         std::vector<Drone::thruster> thrusters{
-            {0.0f,1.0f,0.0f,0.022,3000.0,{{-1.0f,1.0f,-1.0f},glm::quat(glm::vec3(0,0,0))}},
-            {0.0f,1.0f,0.0f,0.022,3000.0,{{-1.0f,1.0f,1.0f},glm::quat(glm::vec3(0,0,0))}},
-            {0.0f,1.0f,0.0f,0.022,3000.0,{{1.0f,1.0f,1.0f},glm::quat(glm::vec3(0,0,0))}},
-            {0.0f,1.0f,0.0f,0.022,3000.0,{{1.0f,1.0f,-1.0f},glm::quat(glm::vec3(0,0,0))}}
+            {0.0f,5.0f,0.0f,0.022,9000000.0, 1.0,{{-0.3f,0.1f,-0.3f},glm::quat(glm::vec3(0,0,0))}},
+            {0.0f,5.0f,0.0f,0.022,9000000.0,-1.0,{{-0.3f,0.1f,0.3f},glm::quat(glm::vec3(0,0,0))}},
+            {0.0f,5.0f,0.0f,0.022,9000000.0, 1.0,{{0.3f,0.1f,0.3f},glm::quat(glm::vec3(0,0,0))}},
+            {0.0f,5.0f,0.0f,0.022,9000000.0,-1.0,{{0.3f,0.1f,-0.3f},glm::quat(glm::vec3(0,0,0))}}
         };
-        drones.push_back(new Drone(std::string(newDroneName), layout, {}, thrusters));
+        drones.push_back(new Drone("Drone", layout, {}, thrusters));
     }
 }
 Drone::Drone(std::string name, NRA::VGL::VertexBufferLayout vbLayout, droneBodyState state, std::vector<thruster> thrusters):
@@ -28,6 +28,9 @@ thrusters{}{
         nt->maxThrust = t.maxThrust;
         nt->controlRef = t.controlRef;
         nt->rPos = t.rPos;
+        nt->torqueRatio = t.torqueRatio;
+        nt->rpmScale = t.rpmScale;
+        nt->dir = t.dir;
         nt->rPos.changeParent(&this->bodyState.pos);
         
         this->thrusters.push_back(nt);
@@ -39,11 +42,11 @@ thrusters{}{
     this->propRenderable.setVBOLayout(vbLayout);
 
     NRA::VGL::Mesh bodyMesh = NRA::VGL::Mesh(8);
-    NRA::VGL::MeshBuilder<GLuint>::createBox(bodyMesh, {}, 1, 1, 1);
+    NRA::VGL::MeshBuilder<GLuint>::createBox(bodyMesh, {}, this->bodyState.bodySize.x, this->bodyState.bodySize.y, this->bodyState.bodySize.z);
     this->bodyRenderable.loadMesh(bodyMesh);
 
     NRA::VGL::Mesh propMesh = NRA::VGL::Mesh(8);
-    NRA::VGL::MeshBuilder<GLuint>::createBox(propMesh, {}, 1, 0.1f, 0.2f);
+    NRA::VGL::MeshBuilder<GLuint>::createBox(propMesh, {}, 0.25f, 0.025f, 0.05f);
     this->propRenderable.loadMesh(propMesh);
 }
 Drone::~Drone(){
@@ -55,22 +58,22 @@ Drone::~Drone(){
 void Drone::update(double dt){
     glm::dvec3 sumForce = glm::dvec3(0.0,0.0,0.0);
     glm::dvec3 sumTorque = glm::dvec3(0.0,0.0,0.0);
+
     for(thruster *t : this->thrusters){
-        t->rPos.rotateA({0,1,0},dt*2*std::acos(-1)*std::sqrt(t->controlRef)*t->rpmScale);
-        glm::dvec3 dir = t->rPos.getQuat()*glm::vec3(0.0f,1.0f,0.0f);
+        double dpsiSq = t->controlRef*t->rpmScale;
+        double dpsi = std::sqrt(dpsiSq);
+        t->rPos.rotateA({0,1,0},dt*2*std::acos(-1)*dpsi*t->dir);
+        glm::dvec3 dir = (glm::dquat)t->rPos.getQuat()*glm::dvec3(0.0f,1.0f,0.0f);
         glm::dvec3 delta = (glm::dvec3)t->rPos.getPos() - this->bodyState.centerMassOffset;
         sumForce += t->controlRef*dir;
-        sumTorque += t->controlRef*glm::cross(delta, dir);
+        sumTorque += t->controlRef*glm::cross(delta, dir) + t->dir*dpsiSq*((glm::dquat)t->rPos.getQuat()*glm::dvec3(0.0,1.0,0.0));
     }
     // Linear force
-    glm::mat4 forceTransform = glm::mat4(1.0f);
-    this->bodyState.pos.transformR(forceTransform);
-    glm::dvec3 absForce = glm::vec4(sumForce, 0.0f) * forceTransform;
-    glm::dvec3 absAcc = absForce;
+    glm::dvec3 absForce = (glm::dquat)this->bodyState.pos.rot*sumForce;
+    glm::dvec3 absAcc = absForce / this->bodyState.mass;
     absAcc += glm::dvec3(0.0,-9.8,0.0);
-    absAcc /= this->bodyState.mass;
     
-    this->bodyState.pos.moveA(dt*this->bodyState.vel + 0.5*dt*dt*absAcc);
+    this->bodyState.pos.moveA(dt*(this->bodyState.vel + 0.5*dt*absAcc));
     this->bodyState.vel += absAcc * dt;
 
     // Angular force
@@ -121,10 +124,17 @@ void Drone::renderDebug(){
     glm::vec3 vel = this->bodyState.vel;
     std::string posStr = "Pos: (" + std::to_string(pos.x) + ", " + std::to_string(pos.y) + ", " + std::to_string(pos.z) + ")";
     std::string velStr = "Vel: (" + std::to_string(vel.x) + ", " + std::to_string(vel.y) + ", " + std::to_string(vel.z) + ")";
+    std::string ctrlStr = "Powers: ";
+    for(thruster *t : this->thrusters){
+        ctrlStr += std::to_string(t->controlRef) +" ";
+    }
+    ImGui::InputDouble("Mass", &this->bodyState.mass);
+    this->bodyState.mass = std::max(this->bodyState.mass, 0.0);
     ImGui::Text(posStr.c_str());
     ImGui::Text(velStr.c_str());
+    ImGui::Text(ctrlStr.c_str());
 
-    ImGui::InputScalarN("Motor powers", ImGuiDataType_Double, &powers.at(0), 4);
+    ImGui::InputScalarN("Motor powers", ImGuiDataType_Double, &powers.at(0), 4, nullptr, nullptr, "%.3f");
 
     if(ImGui::Button("Set")){
         this->control(powers);
@@ -135,6 +145,6 @@ void Drone::renderDebug(){
 }
 void Drone::control(std::vector<double> powers){
     for (std::size_t i = 0; i < std::min(this->thrusters.size(), powers.size()); i++){
-        this->thrusters.at(i)->controlRef = powers.at(i);
+        this->thrusters.at(i)->setControl(powers.at(i));
     }
 }

@@ -10,23 +10,26 @@
 #include "NRA_visionGL/texture.h"
 #include "NRA_visionGL/frameBufferObject.h"
 
+#include "controller.hpp"
+
 class Drone{
 public:
     struct droneBodyState{
-        glm::dvec3 bodySize = glm::dvec3{0.25, 0.25, 0.1};
+        glm::dvec3 bodySize = glm::dvec3{0.25, 0.1, 0.25};
         NRA::VGL::SpacialTree pos = {};
         glm::dvec3 vel = {}, acc = {};
         glm::dvec3 rotVel = {};
         double mass = 1.0;
         glm::dvec3 centerMassOffset = {};
-        glm::dvec3 inertia = {0.03, 0.03, 0.05};
+        glm::dvec3 inertia = {0.03, 0.05, 0.03};
         droneBodyState(){};
     };
     struct thruster{
         double minThrust = 0.0, maxThrust = 0.5;
         double controlRef = 0.0;
         double torqueRatio = 0.022;
-        double rpmScale = 3000.0;
+        double rpmScale = 9000000.0;
+        double dir = 1.0;
         NRA::VGL::SpacialTree rPos = {};
         void setControl(double val){this->controlRef = ((val < this->minThrust) ? this->minThrust : ((val > this->maxThrust) ? this->maxThrust : val));}
     };
