@@ -51,7 +51,7 @@ int main(){
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init();
 
-    std::filesystem::path shaderPath = std::filesystem::current_path().append("submodule/NRA_visionGL/res/shaders/");
+    std::filesystem::path shaderPath = std::filesystem::current_path().append("res/shaders/");
     std::filesystem::path vertexPath = shaderPath/"shaded_texture"/"shaded_texture.vertex";
     std::filesystem::path fragmentPath = shaderPath/"shaded_texture"/"shaded_texture.fragment";
 
@@ -70,11 +70,12 @@ int main(){
     
     glm::mat4 modelMat = glm::mat4(1.0f);
     glm::mat4 vpMat;
-    glm::vec3 lightPos{5.0f,5.0f,0.0f};
+    glm::vec3 lightPos{0.0f,150.0e9,0.0f};
+    float lightCol[4] = {1.0f,1.0f,1.0f,1.5e22f};
     
     controls.setSensitivity(0.01);
     
-    std::filesystem::path imageDir = std::filesystem::current_path() / "submodule" / "NRA_visionGL" / "res" / "textures" / "test.png";
+    std::filesystem::path imageDir = std::filesystem::current_path() / "res" / "textures" / "test.png";
     NRA::VGL::Image worldImage(imageDir);
     NRA::VGL::Texture worldTexture(worldImage);
 
@@ -127,6 +128,9 @@ int main(){
                     cameraSpacial.changeParent(d->getSpacial());
                 }
                 d->update(dt);
+                if(d->controller != nullptr){
+                    d->updateController();
+                }
                 ++i;
             }
         }
@@ -158,6 +162,18 @@ int main(){
             camSpacial.pos = (float)radius*glm::vec3(siny*cosp,-sinp,cosy*cosp);
             camSpacial.rot = glm::angleAxis((float)yaw, glm::vec3(0.0f,1.0f,0.0f)) * glm::angleAxis((float)pitch, glm::vec3(1.0f,0.0f,0.0f));
         }
+        {
+            NRA::VGL::SpacialTree &camSpacial = droneCamera.getSpacial();
+            auto deltaMouseScroll = controls.getDMouseScroll();;
+            radius = std::max(1.0,radius-deltaMouseScroll.second*2.0);
+
+            double sinp = std::sin(pitch);
+            double cosp = std::cos(pitch);
+            double siny = std::sin(yaw);
+            double cosy = std::cos(yaw);
+            camSpacial.pos = (float)radius*glm::vec3(siny*cosp,-sinp,cosy*cosp);
+            camSpacial.rot = glm::angleAxis((float)yaw, glm::vec3(0.0f,1.0f,0.0f)) * glm::angleAxis((float)pitch, glm::vec3(1.0f,0.0f,0.0f));
+        }
         
         
         if(window.getAspectChanged()){
@@ -170,15 +186,17 @@ int main(){
 
         vpMat = glm::mat4(1.0f);
         droneCamera.transformP(vpMat);
-        lightPos = {20.0f*std::sin(totalTime*0.5f), 50.0f, 20.0f*cos(totalTime*0.5f)};
 
         // Render world
         worldTexture.bind(0);
         shader.bind();
         shader.setUniformMat<4>("U_vpMat", &vpMat[0][0]);
         shader.setUniformMat<4>("U_mMat", &modelMat[0][0]);
+        shader.setUniform3<float>("u_lightPos",&lightPos[0]);
+        shader.setUniform4<float>("u_lightColor",lightCol);
         ground.render(shader);
         for(Drone *d : drones){
+            d->updateController();
             d->render(shader);
         }
         

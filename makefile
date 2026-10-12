@@ -5,7 +5,7 @@ CXX = g++ -DIMGUI_DEFINE_MATH_OPERATORS #-std=c++20
 GLFW_MACRO = _GLFW_WAYLAND
 
 OBJ_RAW = glad.o imgui_demo.o imnf.o file_dialogue.o
-OBJ_RAW_ = drone.o ground.o
+OBJ_RAW_ = drone.o ground.o controller.o
 OBJ = $(addprefix ./.o/vendor/, $(OBJ_RAW)) $(addprefix ./.o/, $(OBJ_RAW_))
 
 LIB_RAW = libglfw3.a imgui.a libvision_lib_ARCH.a

@@ -1,0 +1,21 @@
+#version 330 core
+
+layout(location = 0) out vec4 color;
+
+in vec2 v_TexCoord;
+in vec3 v_position;
+in vec3 v_normal;
+uniform vec3 u_lightPos;
+uniform vec4 u_lightColor;
+
+//uniform vec4 u_Color;
+uniform sampler2D u_Texture;
+
+
+void main() {
+    vec3 delta = u_lightPos - v_position;
+	float dist = length(delta);
+	float intensity = u_lightColor.w*dot(delta/(dist*dist*dist), v_normal);
+	vec4 texColor = texture(u_Texture, v_TexCoord);
+	color = vec4(texColor.xyz * intensity, texColor.w);
+};

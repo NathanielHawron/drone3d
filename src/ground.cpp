@@ -34,7 +34,7 @@ Ground::Ground(NRA::VGL::VertexBufferLayout vbLayout, std::size_t size, std::siz
             if(h > maxH){maxH = h;}
             if(h < minH){minH = h;}
 
-            positions[i] = {{rx,h,ry}, {tx, ty}, {0.0, 1.0, 0.0}};
+            positions[i] = {{rx,h-1.0,ry}, {tx, ty}, {0.0, 1.0, 0.0}};
         }
     }
     //std::cout << minH << ":" << maxH << std::endl;
