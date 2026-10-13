@@ -35,13 +35,16 @@ public:
         void setControl(double val){this->controlRef = ((val < this->minThrust) ? this->minThrust : ((val > this->maxThrust) ? this->maxThrust : val));}
     };
     using controlDifferentialFunc = void(*)(Drone *self, double t, double dx, double dy, double dz);
-    static void controlDifferentialQuad(Drone *self, double t, double dx, double dy, double dz);
+    static void controlDifferentialQuad(Drone *self, double t, double dy, double dp, double dr);
 private:
     std::string name;
     droneBodyState bodyState;
     NRA::VGL::Renderable bodyRenderable, propRenderable;
     std::vector<thruster*> thrusters;
     glm::dvec3 gravity = {0.0,-9.81,0.0};
+
+    bool showDisabledControlModes = false;
+    bool showDisabledJoysticks = false;
 public:
     Controller *controller = nullptr;
 public:
@@ -50,8 +53,8 @@ public:
     ~Drone();
     void update(double dt);
     void render(NRA::VGL::Shader &shader);
-    void renderUI(std::size_t index, bool &del, bool &focus);
-    void renderDebug();
+    void renderUI(std::size_t index, bool &del, bool &focus, bool isMain = false);
+    void renderFocus(bool debug);
     void control(std::vector<double> &powers);
     void updateController();
     void readGPS(SensorData::GPS &gps);

@@ -37,6 +37,8 @@ int main(){
 
     window.makeCurrent();
     window.swapInterval(1);
+    Controller::QueryControllers();
+    glfwSetJoystickCallback(Controller::joystickCallback);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
@@ -107,12 +109,12 @@ int main(){
         Drone::DroneMenu(drones, layout);
 
         if(mainDrone != nullptr){
-            mainDrone->renderDebug();
+            mainDrone->renderFocus(true);
         }
         for(std::size_t i=0;i<drones.size();){
             Drone *d = drones.at(i);
             bool del = false, focus = false;
-            d->renderUI(i, del, focus);
+            d->renderUI(i, del, focus, d == mainDrone);
             if(del){
                 if(d == mainDrone){
                     NRA::VGL::SpacialTree &cameraSpacial = droneCamera.getSpacial();

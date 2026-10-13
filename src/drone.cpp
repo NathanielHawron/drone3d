@@ -11,18 +11,18 @@
 
 #include "droneSensors.hpp"
 
-void Drone::controlDifferentialQuad(Drone *self, double t, double dx, double dy, double dz){
+void Drone::controlDifferentialQuad(Drone *self, double t, double dy, double dp, double dr){
     std::vector<double> powers = {
-        t + dx + dy - dz,
-        t - dx - dy - dz,
-        t + dx - dy + dz,
-        t - dx + dy + dz
+        (t + dr + dy + dp)*0.25,
+        (t - dr - dy + dp)*0.25,
+        (t + dr - dy - dp)*0.25,
+        (t - dr + dy - dp)*0.25
     };
     self->control(powers);
 }
 
 void Drone::DroneMenu(std::vector<Drone*> &drones, NRA::VGL::VertexBufferLayout &layout){
-    static const std::size_t newDroneNameSize = 10;
+    static const std::size_t newDroneNameSize = 32;
     static char newDroneName[newDroneNameSize] = {"Drone 0\0"};
     ImGui::Begin("Drones");
     ImGui::InputText("Drone name", newDroneName, newDroneNameSize);
@@ -171,49 +171,109 @@ void Drone::render(NRA::VGL::Shader &shader){
         this->propRenderable.render();
     }
 }
-void Drone::renderUI(std::size_t index, bool &del, bool &focus){
+void Drone::renderUI(std::size_t index, bool &del, bool &focus, bool isMain){
     ImGui::PushID((this->name + std::to_string(index)).c_str());
-    ImGui::BeginChild(this->name.c_str(), {100,75});
-
+    ImGui::BeginChild(this->name.c_str(), {250,75});
+    
     ImGui::Text(this->name.c_str());
     if(ImGui::Button("Delete")){
         del = true;
     }
+    if(isMain){
+        ImGui::BeginDisabled();
+    }
     if(ImGui::Button("Focus")){
         focus = true;
+    }
+    if(isMain){
+        ImGui::EndDisabled();
     }
 
     ImGui::EndChild();
     ImGui::PopID();
 }
-void Drone::renderDebug(){
+void Drone::renderFocus(bool debug){
     static std::vector<double> powers = {0.0,0.0,0.0,0.0};
     static std::vector<double> differentials = {0.0,0.0,0.0,0.0};
-    ImGui::PushID((this->name + "dev").c_str());
-    ImGui::Begin((this->name + " dev menu").c_str());
+    ImGui::PushID((this->name + "focus").c_str());
+    ImGui::Begin((this->name + " focus menu").c_str());
 
-    glm::vec3 pos = this->bodyState.pos.getPos();
-    glm::vec3 vel = this->bodyState.vel;
-    std::string posStr = "Pos: (" + std::to_string(pos.x) + ", " + std::to_string(pos.y) + ", " + std::to_string(pos.z) + ")";
-    std::string velStr = "Vel: (" + std::to_string(vel.x) + ", " + std::to_string(vel.y) + ", " + std::to_string(vel.z) + ")";
-    std::string ctrlStr = "Powers: ";
-    for(thruster *t : this->thrusters){
-        ctrlStr += std::to_string(t->controlRef) +" ";
+    ImGui::Text("Control Mode:");
+    ImGui::SameLine();
+    ImGui::Checkbox("Show disabled##mode", &(Drone::showDisabledControlModes));
+    ImGui::BeginChild("control mode", {300,100});
+    for(int i=0;i<Controller::MODE_STR.size();++i){
+        if(this->controller->isModeSupported(i)){
+            ImGui::RadioButton(Controller::MODE_STR.at(i).c_str(), &this->controller->currentMode, i);
+        }else{
+            if(Drone::showDisabledControlModes){
+                ImGui::BeginDisabled();
+                ImGui::RadioButton(Controller::MODE_STR.at(i).c_str(), &this->controller->currentMode, i);
+                ImGui::EndDisabled();
+            }
+        }
     }
-    ImGui::InputDouble("Mass", &this->bodyState.mass);
-    this->bodyState.mass = std::max(this->bodyState.mass, 0.0);
-    ImGui::Text(posStr.c_str());
-    ImGui::Text(velStr.c_str());
-    ImGui::Text(ctrlStr.c_str());
-
-    ImGui::InputScalarN("Motor powers", ImGuiDataType_Double, &powers.at(0), 4, nullptr, nullptr, "%.3f");
-    ImGui::InputScalarN("Motor differentials", ImGuiDataType_Double, &differentials.at(0), 4, nullptr, nullptr, "%.3f");
-
-    if(ImGui::Button("Set Powers")){
-        this->control(powers);
+    ImGui::EndChild();
+    ImGui::Text("Joystick:");
+    ImGui::SameLine();
+    ImGui::Checkbox("Show disabled##joystick", &(Drone::showDisabledJoysticks));
+    ImGui::BeginChild("joystick", {300,100});
+    for(int jid=GLFW_JOYSTICK_1;jid<=GLFW_JOYSTICK_16;++jid){
+        if(Controller::joysticks[jid] != -1){
+            ImGui::RadioButton(std::to_string(Controller::joysticks[jid]).c_str(), &this->controller->joystick, jid);
+        }else{
+            if(Drone::showDisabledJoysticks){
+                ImGui::BeginDisabled();
+                ImGui::RadioButton(std::to_string(jid).c_str(), &this->controller->joystick, jid);
+                ImGui::EndDisabled();
+            }
+        }
     }
-    if(ImGui::Button("Set Differentials")){
-        this->controlDifferential(this, differentials.at(0),differentials.at(1),differentials.at(2),differentials.at(3));
+    ImGui::EndChild();
+
+    if(debug){
+        ImGui::Text("Debug");
+        ImGui::BeginChild((this->name + "debug").c_str());
+
+        glm::vec3 pos = this->bodyState.pos.getPos();
+        glm::vec3 vel = this->bodyState.vel;
+        std::string posStr = "Pos: (" + std::to_string(pos.x) + ", " + std::to_string(pos.y) + ", " + std::to_string(pos.z) + ")";
+        std::string velStr = "Vel: (" + std::to_string(vel.x) + ", " + std::to_string(vel.y) + ", " + std::to_string(vel.z) + ")";
+        std::string ctrlStr = "Powers: ";
+        for(thruster *t : this->thrusters){
+            ctrlStr += std::to_string(t->controlRef) +" ";
+        }
+        std::string commandStr = "Controls: ";
+        if(this->controller == nullptr){
+            commandStr += "N/A";
+        }else{
+            for(int i=0;i<4;++i){
+                commandStr += std::to_string(this->controller->commands.at(i)) +" ";
+            }
+        }
+        ImGui::InputDouble("Mass", &this->bodyState.mass);
+        this->bodyState.mass = std::max(this->bodyState.mass, 0.0);
+        ImGui::Text(posStr.c_str());
+        ImGui::Text(velStr.c_str());
+        ImGui::Text(ctrlStr.c_str());
+        ImGui::Text(commandStr.c_str());
+    
+        ImGui::InputScalarN("Motor powers", ImGuiDataType_Double, &powers.at(0), 4, nullptr, nullptr, "%.4f");
+        ImGui::InputScalarN("Motor differentials", ImGuiDataType_Double, &differentials.at(0), 4, nullptr, nullptr, "%.4f");
+        if(this->controller->currentMode != Controller::MODE_MANUAL){
+            ImGui::BeginDisabled();
+        }
+        if(ImGui::Button("Set Powers")){
+            this->control(powers);
+        }
+        if(ImGui::Button("Set Differentials")){
+            this->controlDifferential(this, differentials.at(0)*this->bodyState.mass,differentials.at(1)*this->bodyState.mass,differentials.at(2)*this->bodyState.mass,differentials.at(3)*this->bodyState.mass);
+        }
+        if(this->controller->currentMode != Controller::MODE_MANUAL){
+            ImGui::EndDisabled();
+        }
+
+        ImGui::EndChild();
     }
 
     ImGui::End();
@@ -225,14 +285,14 @@ void Drone::control(std::vector<double> &powers){
     }
 }
 void Drone::updateController(){
-    if(this->controller != nullptr){
-        this->readGPS(this->controller->gps);
-        this->readIMU(this->controller->imu);
-        this->readBarometer(this->controller->barometer);
-        this->controller->updateEKF();
-        std::array<double, 4> controls = this->controller->control();
+    this->readGPS(this->controller->gps);
+    this->readIMU(this->controller->imu);
+    this->readBarometer(this->controller->barometer);
+    this->controller->updateEKF();
+    if(this->controller != nullptr && controller->currentMode != Controller::MODE_DEBUG){
+        std::array<double, 4> controls = this->controller->control(this->thrusters.at(0)->maxThrust);
         double cosangle = glm::length(glm::dot(this->gravity, (glm::dquat)this->bodyState.pos.getQuat()*glm::dvec3(0,1,0))) / glm::length(this->gravity);
-        controls.at(0) += glm::length(this->gravity) / std::max((4*cosangle),0.2);
+        controls.at(0) += glm::length(this->gravity) / std::max(cosangle,0.2);
         for(int i=0;i<4;++i){
             controls.at(i) *= this->bodyState.mass;
         }
