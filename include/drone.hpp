@@ -19,10 +19,12 @@ public:
         NRA::VGL::SpacialTree pos = {};
         glm::dvec3 vel = {}, acc = {};
         glm::dvec3 rotVel = {};
+        glm::dvec3 localRotVel = {};
         double mass = 0.468;
         glm::dvec3 centerMassOffset = {};
         glm::dvec3 inertia = {4.856e-3, 8.801e-3, 4.856e-3};
         glm::dvec3 dragQuadratic = {0.02, 0.05, 0.02};
+        glm::dvec3 dragAngularQuadratic = {0.01, 0.02, 0.01};
         droneBodyState(){};
     };
     struct thruster{

@@ -12,8 +12,9 @@ uniform mat4 U_vpMat;
 uniform mat4 U_mMat;
 
 void main() {
-	gl_Position = U_vpMat * U_mMat * position;
-    v_position = position.xyz;
+	vec4 vpos = U_mMat * position;
+	gl_Position = U_vpMat * vpos;
+    v_position = vpos.xyz;
 	v_TexCoord = texCoord;
 	v_normal = (U_mMat * vec4(normal,0)).xyz;
 };

@@ -140,6 +140,7 @@ void Drone::update(double dt){
 
     // Angular Acceleration
     // @TODO: Add cross-coupled inertia
+    sumTorque -= this->bodyState.dragAngularQuadratic * this->bodyState.localRotVel * glm::abs(this->bodyState.localRotVel);
     glm::dvec3 sumMoment = sumTorque / this->bodyState.inertia;
     // Convert to world coordinates
     glm::dvec3 worldRotAcc = posQuat*sumMoment;
@@ -152,7 +153,7 @@ void Drone::update(double dt){
     }
     // Update angular velocity in world coordinates
     this->bodyState.rotVel += dt*worldRotAcc;
-    // @TODO: Add gyroscope (body space degrees/sec)
+    this->bodyState.localRotVel = glm::conjugate((glm::dquat)this->bodyState.pos.getQuat()) * this->bodyState.rotVel;
 }
 void Drone::render(NRA::VGL::Shader &shader){
     glm::mat4 modelMat = glm::mat4(1.0f);
@@ -290,7 +291,7 @@ void Drone::updateController(){
     this->readBarometer(this->controller->barometer);
     this->controller->updateEKF();
     if(this->controller != nullptr && controller->currentMode != Controller::MODE_DEBUG){
-        std::array<double, 4> controls = this->controller->control(this->thrusters.at(0)->maxThrust);
+        std::array<double, 4> controls = this->controller->control(this->thrusters.at(0)->maxThrust*this->thrusters.size()/this->bodyState.mass);
         double cosangle = glm::length(glm::dot(this->gravity, (glm::dquat)this->bodyState.pos.getQuat()*glm::dvec3(0,1,0))) / glm::length(this->gravity);
         controls.at(0) += glm::length(this->gravity) / std::max(cosangle,0.2);
         for(int i=0;i<4;++i){

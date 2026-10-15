@@ -5,17 +5,22 @@ layout(location = 0) out vec4 color;
 in vec2 v_TexCoord;
 in vec3 v_position;
 in vec3 v_normal;
-uniform vec3 u_lightPos;
-uniform vec4 u_lightColor;
+uniform vec3 u_lightPos[2];
+uniform vec4 u_lightColor[2];
 
 //uniform vec4 u_Color;
 uniform sampler2D u_Texture;
 
 
 void main() {
-    vec3 delta = u_lightPos - v_position;
-	float dist = length(delta);
-	float intensity = u_lightColor.w*dot(delta/(dist*dist*dist), v_normal);
+	vec3 lightColor = vec3(0,0,0);
+	for(int i=0;i<2;++i){
+		vec3 delta = u_lightPos[i] - v_position;
+		float dist = length(delta);
+		float intensity = u_lightColor[i].w*dot(delta/(dist*dist*dist), v_normal);
+
+		lightColor += u_lightColor[i].xyz * intensity;
+	}
 	vec4 texColor = texture(u_Texture, v_TexCoord);
-	color = vec4((texColor.xyz*u_lightColor.xyz) * intensity, texColor.w);
+	color = vec4(texColor.xyz*lightColor.xyz, texColor.w);
 };

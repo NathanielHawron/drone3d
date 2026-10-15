@@ -70,7 +70,7 @@ std::array<double, 4> QuadController::control(double maxAcc){
                 if(std::abs(axes[0]) < deadZone){
                     this->commands.at(1) = 0;
                 }else{
-                    this->commands.at(1) = axes[0];
+                    this->commands.at(1) = -axes[0];
                 }
                 if(std::abs(axes[3]) < deadZone){
                     this->commands.at(2) = 0;

@@ -70,18 +70,39 @@ int main(){
     NRA::VGL::Camera_T<NRA::VGL::SpacialTree> droneCamera({0.0f,0.0f,10.0f},glm::quat(glm::vec3(0.0f,0.0f,0.0f)),projectionParams,(NRA::VGL::SpacialTree*)nullptr);
     //camera.rotLock = true;
     
-    glm::mat4 modelMat = glm::mat4(1.0f);
     glm::mat4 vpMat;
-    glm::vec3 lightPos{0.0f,150.0e9,0.0f};
-    float lightCol[4] = {1.0f,1.0f,1.0f,1.5e22f};
+    glm::vec3 lightPos[2]{
+        {0.0f,0.0,0.0f},
+        {0.0f,0.0,0.0f}
+    };
+    float lightCol[2][4]{
+        {1.0f, 0.95f, 0.85f, 1.0e4f},
+        {0.85f, 0.95f, 1.0f, 1.0e2f}
+    };
     
     controls.setSensitivity(0.01);
     
-    std::filesystem::path imageDir = std::filesystem::current_path() / "res" / "textures" / "test.png";
+    std::filesystem::path imageDir = std::filesystem::current_path() / "res" / "textures" / "dirt.png";
     NRA::VGL::Image worldImage(imageDir);
-    NRA::VGL::Texture worldTexture(worldImage);
+    NRA::VGL::Texture worldTexture(worldImage, {{GL_TEXTURE_MIN_FILTER, GL_NEAREST},{GL_TEXTURE_MAG_FILTER, GL_NEAREST},{GL_TEXTURE_WRAP_S, GL_REPEAT},{GL_TEXTURE_WRAP_T, GL_REPEAT}});
 
-    Ground ground(layout, 100, 0, 100.0);
+    Ground::Config groundConfig;
+    // groundConfig.originY = -1.0;
+    groundConfig.bpc = 100;
+    groundConfig.chunkCount = 10;
+    groundConfig.chunkSize = 10;
+    groundConfig.textureScale = 10.0;
+    groundConfig.textureOffsetX = 0.0;
+    groundConfig.textureOffsetY = 0.0;
+
+    groundConfig.noiseParams.amplitude = 1;
+    groundConfig.noiseParams.scale = 0.1;
+    groundConfig.noiseParams.levels = 5;
+
+    groundConfig.noiseParams.dAmp = 0.5;
+    groundConfig.noiseParams.dScale = 2.0;
+
+    Ground ground(layout, groundConfig);
     std::vector<Drone*> drones;
     Drone *mainDrone = nullptr;
 
@@ -98,6 +119,10 @@ int main(){
         previousTime = currentTime;
         double dt = elapsed.count() / 1000000000.0;
         totalTime += dt;
+
+        double theta = 0.01*currentTime.time_since_epoch().count()/180.0e6*std::acos(-1);
+        lightPos[0] = {5.0e1*std::sin(theta), 1.0e2, 5.0e1*std::cos(theta)};
+        lightPos[1] = {-4.0e1*std::sin(theta), 1.0e1, -4.0e1*std::cos(theta)};
 
         window.reset();
         NRA::VGL::Window::update();
@@ -193,9 +218,9 @@ int main(){
         worldTexture.bind(0);
         shader.bind();
         shader.setUniformMat<4>("U_vpMat", &vpMat[0][0]);
-        shader.setUniformMat<4>("U_mMat", &modelMat[0][0]);
-        shader.setUniform3<float>("u_lightPos",&lightPos[0]);
-        shader.setUniform4<float>("u_lightColor",lightCol);
+
+        shader.setUniform3v<float>("u_lightPos",&lightPos[0][0],2);
+        shader.setUniform4v<float>("u_lightColor",&lightCol[0][0],2);
         ground.render(shader);
         for(Drone *d : drones){
             d->updateController();
